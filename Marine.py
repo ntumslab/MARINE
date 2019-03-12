@@ -10,11 +10,11 @@ class Analyzer(torch.utils.data.Dataset):
         super(Analyzer, self).__init__()
         self.Q = Q
         self.edgeList = []
-        self.relaOvserved = {}
+        self.relaObserved = {}
         self.nodeCount = 0
         self.relaCount = 0
         self.attribute = None
-        self.attriDim = 0
+        self.attri_dim = 0
 
     def readFiles(self, undirected, edgeFile, attriFile):
         with open(edgeFile) as f:
@@ -24,7 +24,7 @@ class Analyzer(torch.utils.data.Dataset):
                 index_i, index_j, index_k = (int(x) for x in line.split())
                 if index_i == index_j:
                     continue
-                observedSet = self.relaOvserved.setdefault(index_k, set())
+                observedSet = self.relaObserved.setdefault(index_k, set())
                 observedSet.add((index_i, index_j))
                 self.edgeList.append((index_i, index_j, index_k))
                 if not undirected:
@@ -47,7 +47,7 @@ class Analyzer(torch.utils.data.Dataset):
             for index, line in enumerate(f, start=0):
                 embedding[index,:] = np.array(line.split(), dtype=float)
 
-        self.attriDim = dimension
+        self.attri_dim = dimension
         self.attribute = torch.tensor(embedding, dtype=torch.float)
 
         return self
@@ -58,7 +58,7 @@ class Analyzer(torch.utils.data.Dataset):
     def __getitem__(self, index):
         i, j, k = self.edgeList[index // self.Q]
         inputVector = [k, i, j]
-        observedSet = self.relaOvserved[k]
+        observedSet = self.relaObserved[k]
 
         if np.random.random() < 0.5:  # corrupt tail
             while True:
@@ -94,7 +94,7 @@ class Marine(torch.nn.Module):
             print("alpha: {} ({})".format(alpha, attriFile))
             self.attribute = torch.nn.Embedding.from_pretrained(
                 self.analyzer.attribute, freeze=True)
-            self.transform = torch.nn.Linear(dimension, self.analyzer.attriDim)
+            self.transform = torch.nn.Linear(dimension, self.analyzer.attri_dim)
 
     def forward(self, batchVector):
         idx_k = batchVector[:,0]
@@ -153,7 +153,7 @@ class Marine(torch.nn.Module):
         self.dumpTensor(self.linkEmbedding, os.path.join(path, 'link.txt'))
 
 
-if __name__ == "__main__":
+def main():
     import argparse
     parser = argparse.ArgumentParser(description='Marine')
     parser.add_argument('edgeFile')
@@ -192,4 +192,8 @@ if __name__ == "__main__":
                     attriFile=args.attribute)
     module.train(epoches=args.epoches)
     module.saveWeights(path=args.path)
+
+
+if __name__ == "__main__":
+    main()
 
